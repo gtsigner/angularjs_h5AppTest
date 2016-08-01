@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>我的项目</title>
+    <link rel="stylesheet" href="./libs/bootstrap/css/bootstrap.min.css">
+    <script src="http://apps.bdimg.com/libs/angular.js/1.4.6/angular.min.js"></script>
+    <script type="text/javascript" src="./libs/jquery/2.1.4/jquery.min.js"></script>
+    <script type="text/javascript" src="./libs/bootstrap/js/bootstrap.min.js"></script>
+    <script type="text/javascript" src="./ui/js/common.js"></script>
+    <style>
+
+        header {
+            margin-bottom: 20px;
+            margin-top: 10px;
+        }
+
+        .btn-group {
+            text-align: center;
+        }
+
+        .btn {
+            min-width: 100px;
+            border-radius: 10px;
+            border: none;
+        }
+
+        .btn:focus {
+            outline: none;
+        }
+
+        .btn.btn-success {
+            background-color: #F97A66;
+        }
+
+        .btn.btn-danger {
+            background-color: #44B496;
+        }
+
+        .btn.btn-comp {
+            width: 70%;
+        }
+
+        .btn {
+            margin-right: 0px;
+        }
+
+        .project-item {
+            padding: 10px 10px;
+            border-bottom: 2px solid #bdbdbd;
+        }
+
+        .project-item .name {
+            line-height: 30px;
+            font-size: 18px;
+        }
+
+        .project-item .kind {
+            color: #808080;
+            line-height: 20px;
+            font-size: 16px;
+        }
+
+        .project-item .head-img {
+            height: 50px;
+            width: 50px;
+        }
+
+        .project-item .btn-s {
+            padding-top: 20px;
+        }
+
+        .project-item .project-user {
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        .input-sm {
+            width: 200px;
+        }
+
+        .col-xs-10 {
+            padding-left: 20px;
+        }
+    </style>
+</head>
+<body ng-app="myApp" ng-controller="projectController">
+<header>
+    <div class="container">
+        <img src="./ui/images/4.png" class="header-total-img img-circle">
+        <select class="select input-sm"
+                ng-change="change(pItem)"
+                name="position"
+                ng-options="pItem as pItem for pItem in positions"
+                ng-model="search">
+            <option value="">全部</option>
+        </select>
+    </div>
+</header>
+<div class="container">
+    <div>
+        <div class="row project-item" ng-repeat="project in projects" data-id="{{project.id}}">
+            <div class="item-header">
+                <div class="col-xs-2">
+                    <img src="./ui/images/5.png" class="head-img img-circle">
+                </div>
+                <div class="col-xs-10">
+                    <span name="project_name" class="name">{{project.name}}</span>
+                    <br/>
+                    <span name="project_desc" class="kind">{{project.kind}}</span>
+                    <div class="project-user">
+                        <span name="at">{{project['at'+project.step]}}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="text-center btn-s" ng-if="project.position=='项目负责人'">
+                <button class="btn btn-danger action-accept" onclick="accept(this)" data-id="{{project.id}}"
+                        data-step="{{project.step}}">接受
+                </button>
+                <button class="btn btn-success action-veto" onclick="veto(this)" data-id="{{project.id}}"
+                        data-step="{{project.step}}">否决
+                </button>
+            </div>
+            <div class="text-center btn-s" ng-if="project.position=='项目组成员'">
+                <button class="btn btn-danger action-accept"
+                        onclick="accept(this)"
+                        data-id="{{project.id}}"
+                        data-step="{{project.step}}">我已完成
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    var host = "http://139.196.202.5:8031";
+    var api_url = host + "/project/myProjectList?sid=";
+    var zao_api_ur = host + "/project/priceProjectList?sid=";
+    var sid = "";
+    var _my_position = '';//我的
+    var app = angular.module('myApp', []);
+
+    function initSid() {
+        var req = _getRequest();
+        sid = req['sid'];
+        _my_position = req['position'];
+    }
+
+
+    initSid();//初始化sid
+
+    var _projects = new Array();
+    var _positions = new Array();
+    $(function () {
+        console.log("Init Sid=" + sid + ",Position:" + _my_position);
+        if (_my_position == null) {
+            return false;
+        }
+    });
+
+    //去掉重复
+    Array.prototype.unique4 = function () {
+        this.sort();
+        var re = [this[0]];
+        for (var i = 1; i < this.length; i++) {
+            if (this[i] !== re[re.length - 1]) {
+                re.push(this[i]);
+            }
+        }
+        return re;
+    };
+
+    app.controller('projectController', function ($scope, $http) {
+        var url = api_url + sid;
+        if (_my_position == '%E9%80%A0%E4%BB%B7%E9%83%A8%E7%BB%8F%E7%90%86') {
+            url = zao_api_ur + sid;
+        }
+        $http.get(url).success(function (response) {
+            switch (parseInt(response.code)) {
+                case 10000:
+                    var projects = response['result']['Projects'];
+                    for (var i = 0; i < projects.length; i++) {
+                        var position = projects[i]['position'];
+                        _positions.push(position);
+                    }
+                    _positions = _positions.unique4();
+                    _projects = projects;
+                    $scope.projects = projects;
+                    $scope.positions = _positions;
+                    $scope.my_position = _my_position;
+                    $scope.change = function () {
+                        var newPro = new Array();
+                        var selectItem = $scope.search;
+                        console.log(selectItem);
+                        if (selectItem == null) {
+                            $scope.projects = _projects;
+                            return;
+                        }
+                        for (var i = 0; i < _projects.length; i++) {
+                            var position = _projects[i]['position'];
+                            if (position == selectItem) {
+                                newPro.push(_projects[i]);
+                            }
+                        }
+                        $scope.projects = newPro;
+                    };
+                    break;
+                default:
+                    alert(response.message);
+                    break;
+            }
+        });
+    });
+
+    //同意
+    function accept(e) {
+        var id = $(e).attr("data-id");
+        var step = $(e).attr("data-step");
+        //统一更新接口
+        var url = host + "/project/projectUpdate" + step + "?sid=" + sid;
+        console.log("ID:" + id + ",Step:" + step);
+        $.post(url, {'id': id}, function (ret) {
+            var code = parseInt(ret.code);
+            switch (code) {
+                case 10000:
+                    alert(ret.message);
+                    break;
+                default:
+                    alert(ret.message);
+                    break;
+            }
+        }, 'json');
+    }
+
+    //否决
+    function veto(e) {
+        var id = $(e).attr("data-id");
+        var step = $(e).attr("data-step");
+        var url = host + "/project/projectStop?sid=" + sid;
+        $.post(url, {'id': id}, function (ret) {
+            //console.log(ret);
+            var code = parseInt(ret.code);
+            console.log(code);
+            switch (code) {
+                case 10000:
+                    alert(ret.message);
+                    break;
+                default:
+                    alert(ret.message);
+                    break;
+            }
+        }, 'json');
+    }
+
+
+</script>
+</body>
+</html>
